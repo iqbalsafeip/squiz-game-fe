@@ -10,8 +10,10 @@ const Auth = props => {
         isBuat: false,
         isJoin: false,
         isAuth: false,
-        jml: undefined,
+        jml: 0,
         roomName: '',
+        kategori: '',
+        name: ''
     });
 
 
@@ -27,7 +29,13 @@ const Auth = props => {
     }
 
     const buatRoom = () => {
-        props.socket.emit('buatRoom', data.jml)
+        if(data.jml > 0 && data.kategori !== ''){
+            props.socket.emit('buatRoom', {jml: data.jml, kategori: data.kategori, nama: data.name})
+            console.log({jml: data.jml, kategori: data.kategori, nama: data.name});
+            setLoading(true);
+        } else {
+            console.log('baleg euy');
+        }
     }
 
     const joinRoom = () => {
@@ -43,8 +51,6 @@ const Auth = props => {
         })
         props.socket.emit('masukRoom', code);
     }
-
-
 
     React.useEffect(() => {
         if (step === 4) {
@@ -62,8 +68,6 @@ const Auth = props => {
             props.setUsername(d)
 
         })
-
-        
 
         props.socket.on('sendRoom', room => {
             setLoading(false)
@@ -143,19 +147,23 @@ const Auth = props => {
                             </Button>
                             <VStack spacing="10px" >
                                 <FormControl >
+                                    <FormLabel>Nama Room</FormLabel>
+                                    <Input placeholder="Masukan Nama Room.." size="sm" colorScheme="blackAlpha" onChange={(e) => setData({ ...data, name: e.target.value })} />
+                                </FormControl>
+                                <FormControl >
                                     <FormLabel>Jumlah Pemain</FormLabel>
-                                    <Select placeholder="Jumlah Pemain" variant="filled" color="black" >
-                                        <option>3</option>
-                                        <option>5</option>
-                                        <option>10</option>
+                                    <Select placeholder="Jumlah Pemain" variant="filled" color="black" onChange={e => setData({...data, jml: e.target.value})} >
+                                        <option value="3">3</option>
+                                        <option value="5">5</option>
+                                        <option value="10" >10</option>
                                     </Select>
                                 </FormControl>
                                 <FormControl >
                                     <FormLabel>Kategori</FormLabel>
-                                    <Select placeholder="Kategori" variant="filled" color="black" >
-                                        <option>Umum</option>
-                                        <option>Olahraga</option>
-                                        <option>Film</option>
+                                    <Select placeholder="Kategori" value={data.kategori} onChange={e => setData({...data, kategori: e.target.value})} variant="filled" color="black" >
+                                        <option value='general' >Umum</option>
+                                        <option value='sport' >Olahraga</option>
+                                        <option value='movie'>Film</option>
                                     </Select>
                                 </FormControl>
                                 <Button
@@ -163,7 +171,7 @@ const Auth = props => {
                                     loadingText="Submitting"
                                     colorScheme="blackAlpha"
                                     fontSize="sm"
-                                    onClick={() => setStep(4)}
+                                    onClick={() => buatRoom()}
                                 >
                                     Buat Room
                                 </Button>
@@ -196,17 +204,18 @@ const Auth = props => {
                                                 <HStack justify="space-between" width="max-content" width="100%" >
                                                     <Text>{d.name}</Text>
                                                     <Spacer />
-                                                    <Text>{d.players.length}/{d.max}</Text>
+                                                    <Text>{d.players.length}/{d.max} </Text>
+                                                        {d.isPlayed ? <Text color='red' fontSize='sm' >(Bermain)</Text> : <Text color='yellow' fontSize='sm' >(Menunggu)</Text> }
                                                 </HStack>
                                                 <HStack justify="space-between" width="max-content" width="100%" >
                                                     <Text>Kategori : {d.category}</Text>
                                                     <Button
-                                                        isLoading={d.isLoading}
+                                                        isLoading={d.isLoading }
                                                         loadingText="Memasuki Room"
                                                         colorScheme="blackAlpha"
                                                         fontSize="sm"
                                                         onClick={() => masukRoom(d.code)}
-                                                        disabled={d.isDisabled}
+                                                        disabled={d.isDisabled || d.isPlayed}
                                                     >
                                                         Masuk Room
                                                     </Button>

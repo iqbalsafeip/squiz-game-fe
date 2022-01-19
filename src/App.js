@@ -75,6 +75,10 @@ function App() {
 
 
   const [countDown, setCountDown] = useState(0)
+  const [timeleft, setTime] = useState(0);
+  const [interval, setIntorpol] = useState(null)
+
+  const [_final, _setFinal] = useState(null);
 
   useEffect(() => {
 
@@ -99,20 +103,43 @@ function App() {
       setRM(true)
     })
 
-    socket.on('init-pertanyaan', (value) => {
+    socket.on('game-dimulai', (value) => {
       setDollState('tutup')
       audio.play();
       const DURATION = 8;
       setLoadPertanyaan(true);
-      setSoal(value)
+      setSoal(value.question)
+      setTime(0);
+      setCountDown(value.duration)
       console.log(value);
+      setIsReady(true)
       setTimeout(() => {
         setPhase(2)
         setLoadPertanyaan(false);
         setDollState('normal')
+
+        setIntorpol(setInterval(() => {
+          setTime((state) => (state + 0.1));
+        }, 100))
+
+
+
       }, 1000 * DURATION)
       // setIsReady(true)
     })
+
+
+    socket.on('round-end', function(){
+      setIsReady(false)
+      _setFinal(null)
+      setPhase(1);
+      setDollState('normal')
+    })
+
+  
+
+    // io.to(e.socketMaster).emit('next-round')  
+
 
     socket.on('pertanyaan', (value) => {
       setSoal(value)
@@ -151,6 +178,14 @@ function App() {
 
 
   }, [])
+
+  useEffect(() => {
+    if (timeleft >= countDown) {
+      console.log('anggresan');
+      clearInterval(interval)
+    }
+  }, [timeleft])
+
 
   // useEffect(()=>{
   //   window.setInterval(()=>{
@@ -197,6 +232,19 @@ function App() {
     setPesan('')
   }
 
+  const doAnswer = (keyAnswer) => {
+    _setFinal(keyAnswer)
+    if (keyAnswer == soal.key) {
+      console.log('betolll');
+      setDollState('senyum')
+      socket.emit('betul', { timeleft, countDown })
+    } else {
+      console.log('salaahhh');
+      setDollState('marah');
+      socket.emit('salah');
+    }
+  }
+
   useEffect(() => {
 
   }, [mOpen])
@@ -220,7 +268,14 @@ function App() {
                     Peringkat
                   </Button>
                   <Spacer />
-                  <Text fontWeight="bold" colorScheme="blackAlpha" >{room}#{username}</Text>
+                  <div>
+                    <Text fontWeight="bold" colorScheme="blackAlpha" >{room}#{username}</Text>
+                    <HStack justify="flex-end" >
+                      <i className="bi bi-heart-fill"></i>
+                      <i className="bi bi-heart-fill"></i>
+                    </HStack>
+                  </div>
+
                 </HStack>
               </Box>
 
@@ -234,10 +289,10 @@ function App() {
             </Flex>
 
             <VStack mt="5px" >
-              <Text textColor="white" >{!isReady ? 'Belum Mulai' : 'Dimulai!'}</Text>
-              <Progress size="md" value={countDown} colorScheme="blackAlpha" width="full" max={30} borderRadius="md" />
+              <Text textColor="white" >{isReady ? timeleft >= countDown ? 'Waktu Berakhir' : 'Dimulai' : 'Belum Mulai!'}</Text>
+              <Progress size="md" value={timeleft} colorScheme="blackAlpha" width="full" max={countDown} borderRadius="md" />
+              <button onClick={e => setTime(state => state + 1)} >awd</button>
             </VStack>
-
             <Flex direction="column" alignItems="center" justifyContent="center" >
               {getDollByState('normal')}
               <Box color="white" bg="#2C3024" padding="5" shadow="lg" width="480px" position="absolute" bottom="0px" minHeight="30vh"  >
@@ -265,19 +320,20 @@ function App() {
                   phase === 2 && !loadPertanyaan && (
                     <Container justifyContent="center" alignItems="center" width="max-content" width="100%" >
                       <Text fontSize="12px" >{soal?.pertanyaan}</Text>
-                      <SimpleGrid columns={2} spacing={3}>
-                        {soal?.answer?.map((p,i)=> (
+                      <SimpleGrid columns={2} spacing={3} marginTop={3}>
+                        {soal?.answer?.map((p, i) => (
                           <Button
                             loadingText="Memasuki Room"
-                            colorScheme="red"
+                            colorScheme={_final === i ? dollState === 'senyum' ? 'green' : 'red' : 'blackAlpha'}
                             fontSize="12px"
                             key={i}
-                            
+                            onClick={e => doAnswer(i)}
+                            disabled={_final || timeleft >= countDown}
                           >
                             {p}
                           </Button>
                         ))}
-                        
+
                       </SimpleGrid>
                     </Container>
                   )
