@@ -4,13 +4,14 @@ import React, { useEffect, useState, useRef } from 'react';
 import Auth from './pages/auth';
 import io from 'socket.io-client'
 import boku from './boku.mp3'
+import tiktok from './tiktok.mp3';
+import beresSound from './beres.mp3';
+import salahSound from './false.mp3';
+import benarSound from './true.mp3';
+import winSound from './win.mp3'
+import bgmSound from './bgm.mp3';
 
-
-
-import { FullScreen, useFullScreenHandle } from "react-full-screen";
-
-
-import { PhoneIcon, AddIcon, WarningIcon, BellIcon, ChatIcon, CheckCircleIcon, StarIcon } from '@chakra-ui/icons'
+import { BellIcon, ChatIcon, StarIcon } from '@chakra-ui/icons'
 
 import {
   ChakraProvider, VStack, Container, HStack, Box, Flex, Spacer, Heading, Input, Button, Text, BeatLoader, FormControl, FormLabel, Select, Skeleton, Modal,
@@ -27,14 +28,31 @@ import {
   Tr,
   Th,
   Td,
-  TableCaption,
+
   Icon,
   Progress,
   InputGroup,
   InputRightElement,
   extendTheme,
-  SimpleGrid
+  SimpleGrid,
+  Avatar
 } from '@chakra-ui/react'
+
+
+import bapa from './profile/bapa.png'
+import ibu from './profile/ibu.png'
+import aa from './profile/aa.png'
+import tth from './profile/tth.png'
+
+const getAvatar = (id) => {
+  switch (id) {
+    case 0: return bapa;
+    case 1: return ibu;
+    case 2: return aa;
+    case 3: return tth;
+    default: return bapa;
+  }
+}
 
 
 const theme = extendTheme({
@@ -47,11 +65,16 @@ const theme = extendTheme({
 
 const socket = io('/')
 
-const audio = new Audio(boku)
+const audio = new Audio(boku);
+const tiktokSound = new Audio(tiktok);
+const benar = new Audio(benarSound);
+const salah = new Audio(salahSound);
+const beres = new Audio(beresSound);
+const win = new Audio(winSound);
+const bgm = new Audio(bgmSound);
+
 
 function App() {
-
-  const screen2 = useFullScreenHandle();
 
   const [isAuth, setIsAuth] = useState(false)
   const [username, setUsername] = useState('');
@@ -72,6 +95,7 @@ function App() {
   const [roomDetail, setRoomDetail] = useState({})
   const [loadPertanyaan, setLoadPertanyaan] = useState(false)
   const [phase, setPhase] = useState(1);
+  const [avatar, setAvatar] = useState(0);
 
 
   const [countDown, setCountDown] = useState(0)
@@ -80,10 +104,17 @@ function App() {
 
   const [_final, _setFinal] = useState(null);
 
-  useEffect(() => {
 
-    socket.on('username', value => {
-      setUsername(value)
+  
+
+
+
+  useEffect(() => {
+    bgm.play();
+
+    socket.on('initSelfData', value => {
+      setUsername(value.username)
+      setAvatar(value.avatar)
       console.log(value);
     })
 
@@ -91,8 +122,6 @@ function App() {
       setRoom(value)
       console.log(value);
     })
-
-
 
     socket.on('notif', value => {
       setNotif([...notif, value])
@@ -106,37 +135,40 @@ function App() {
     socket.on('game-dimulai', (value) => {
       setDollState('tutup')
       audio.play();
-      const DURATION = 8;
       setLoadPertanyaan(true);
       setSoal(value.question)
       setTime(0);
       setCountDown(value.duration)
       console.log(value);
       setIsReady(true)
-      setTimeout(() => {
-        setPhase(2)
-        setLoadPertanyaan(false);
-        setDollState('normal')
+      bgm.pause()
+      bgm.currentTime = 0;
 
-        setIntorpol(setInterval(() => {
-          setTime((state) => (state + 0.1));
-        }, 100))
-
-
-
-      }, 1000 * DURATION)
       // setIsReady(true)
     })
 
 
-    socket.on('round-end', function(){
+    socket.on('round-end', function () {
       setIsReady(false)
       _setFinal(null)
       setPhase(1);
       setDollState('normal')
+      tiktokSound.pause();
+      tiktokSound.currentTime = 0;
+      beres.play();
     })
 
-  
+    socket.on('countdown', val => {
+      console.log(val);
+      setTime((time) => val);
+    })
+
+    socket.on('round-start', () => {
+      tiktokSound.play();
+      setPhase(2)
+      setLoadPertanyaan(false);
+      setDollState('normal')
+    })
 
     // io.to(e.socketMaster).emit('next-round')  
 
@@ -176,15 +208,23 @@ function App() {
       setRoomDetail(room)
     })
 
+    socket.on('game-end', () => {
+      onOpen(true);
+      setPhase(5)
+      win.play();
+      tiktokSound.pause()
+      tiktokSound.currentTime = 0
+    })
+
 
   }, [])
 
-  useEffect(() => {
-    if (timeleft >= countDown) {
-      console.log('anggresan');
-      clearInterval(interval)
-    }
-  }, [timeleft])
+  // useEffect(() => {
+  //   if (timeleft >= countDown) {
+  //     console.log('anggresan');
+  //     clearInterval(interval)
+  //   }
+  // }, [timeleft])
 
 
   // useEffect(()=>{
@@ -237,12 +277,22 @@ function App() {
     if (keyAnswer == soal.key) {
       console.log('betolll');
       setDollState('senyum')
+      benar.play();
       socket.emit('betul', { timeleft, countDown })
     } else {
       console.log('salaahhh');
       setDollState('marah');
       socket.emit('salah');
+      salah.play();
     }
+  }
+
+  const doOutRoom = () => {
+    socket.emit('keluar-room')
+    setRoom(null)
+    setRoomDetail(null)
+    setRM(false)
+    setPage(1)
   }
 
   useEffect(() => {
@@ -291,7 +341,6 @@ function App() {
             <VStack mt="5px" >
               <Text textColor="white" >{isReady ? timeleft >= countDown ? 'Waktu Berakhir' : 'Dimulai' : 'Belum Mulai!'}</Text>
               <Progress size="md" value={timeleft} colorScheme="blackAlpha" width="full" max={countDown} borderRadius="md" />
-              <button onClick={e => setTime(state => state + 1)} >awd</button>
             </VStack>
             <Flex direction="column" alignItems="center" justifyContent="center" >
               {getDollByState('normal')}
@@ -299,7 +348,7 @@ function App() {
                 {
                   phase === 1 && !loadPertanyaan && (
                     <VStack justifyContent="center" alignItems="center" width="max-content" width="100%"   >
-                      <Text>Total Pemain {roomDetail?.players?.length}/10</Text>
+                      <Text>Total Pemain {roomDetail?.players?.length}/{roomDetail.max}</Text>
                       {isRM ? (
                         <Button
                           loadingText="Memasuki Room"
@@ -310,7 +359,10 @@ function App() {
                           Mulai Game
                         </Button>
                       ) : (
-                        <Text>Room Master Belum Memulai Game</Text>
+                        <React.Fragment>
+                          <Text>Room Master Belum Memulai Game</Text>
+                          {/* <Button onClick={doOutRoom} >Keluar Room</Button> */}
+                        </React.Fragment>
                       )}
 
                     </VStack>
@@ -328,7 +380,7 @@ function App() {
                             fontSize="12px"
                             key={i}
                             onClick={e => doAnswer(i)}
-                            disabled={_final || timeleft >= countDown}
+                            disabled={_final !== null || timeleft >= countDown}
                           >
                             {p}
                           </Button>
@@ -399,37 +451,60 @@ function App() {
       </div> */}
       <Modal isOpen={isOpen} onClose={onClose} colorScheme="blackAlpha" >
         <ModalOverlay />
-        <ModalContent>
+        <ModalContent backgroundColor={'blackAlpha'} >
           <ModalHeader>Peringkat</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            {ldperingkat ? (
-              <VStack spacing="10px">
-                {Array(10).fill([]).map((_, i) => (
-                  <Skeleton width="sm" height="40px" key={i} />
-                ))}
-              </VStack>
-            ) : (
-              <Table variant="simple">
-                <Thead>
-                  <Tr>
-                    <Th>No</Th>
-                    <Th>Username</Th>
-                    <Th>Score</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {peringkat.map((d, i) => (
-                    <Tr key={i}>
-                      <Td>{i + 1}</Td>
-                      <Td>{d.name} {d.isRM && <Icon as={StarIcon} />}</Td>
-                      <Td >{d.score}</Td>
-                    </Tr>
-                  ))}
-                </Tbody>
 
-              </Table>
-            )}
+            <React.Fragment>
+              <HStack justifyContent={'space-evenly'} alignItems={'flex-end'} marginBottom={4} >
+                <VStack textAlign={'center'} justifyContent={'center'} alignItems={'center'}>
+                  <Avatar size='xl' src={getAvatar(peringkat[1]?.avatar)} />
+                  <Text fontSize={18} fontWeight={'bold'}  >No. 2</Text>
+                  <Text fontSize={16} fontWeight={'bold'}  >{peringkat[1]?.name || 'Kosong'}</Text>
+                  <Text fontSize={14}>{peringkat[1]?.score || '0'}</Text>
+                </VStack>
+                <VStack textAlign={'center'} justifyContent={'center'} alignItems={'center'}  >
+                  <Avatar size='2xl' src={getAvatar(peringkat[0]?.avatar)} border={'5px'} borderStyle={'solid'} borderColor={'green.200'} />
+                  <Text fontSize={20} fontWeight={'bold'}  >No. 1</Text>
+                  <Text fontSize={18} fontWeight={'bold'} >{peringkat[0]?.name || 'Kosong'}</Text>
+                  <Text fontSize={16}>{peringkat[0]?.score || '0'}</Text>
+                </VStack>
+                <VStack textAlign={'center'} justifyContent={'center'} alignItems={'center'}>
+                  <Avatar size='xl' src={getAvatar(peringkat[2]?.avatar)} />
+                  <Text fontSize={18} fontWeight={'bold'}  >No. 3</Text>
+                  <Text fontSize={16} fontWeight={'bold'}  >{peringkat[2]?.name || 'Kosong'}</Text>
+                  <Text fontSize={14}>{peringkat[2]?.score || '0'}</Text>
+                </VStack>
+              </HStack>
+              {ldperingkat ? (
+                'membuat..'
+              ) : (
+                <Table variant="simple">
+                  <Thead>
+                    <Tr >
+                      <Th>No</Th>
+                      <Th>Username</Th>
+                      <Th>Score</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {peringkat.map((d, i) => !([0, 1, 2].includes(i)) && (
+                      <Tr key={i}  >
+                        <Td>{i + 1}</Td>
+                        <Td>
+                          <HStack justifyContent={'flex-start'} spacing={5} alignItems={'center'}  >
+                            <Avatar size='sm' src={getAvatar(d.avatar)} />
+                            <Text>{d.name} {d.isRM && <Icon as={StarIcon} />}</Text>
+                          </HStack>
+                        </Td>
+                        <Td >{d.score}</Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              )}
+            </React.Fragment>
           </ModalBody>
 
           <ModalFooter>
@@ -470,7 +545,6 @@ function App() {
               </InputRightElement>
             </InputGroup>
           </ModalBody>
-
           <ModalFooter>
             <Button colorScheme="blackAlpha" onClick={mClose}>
               Close

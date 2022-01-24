@@ -1,8 +1,21 @@
 import React, { useEffect, useState } from 'react'
 
-import { VStack, Container, HStack, Box, Flex, Spacer, Heading, Input, Button, Text, BeatLoader, FormControl, FormLabel, Select, Skeleton } from '@chakra-ui/react'
+import { VStack, Container, HStack, Box, Flex, Spacer, Heading, Input, Button, Text, BeatLoader, FormControl, FormLabel, Select, Skeleton, SimpleGrid } from '@chakra-ui/react'
 
+import bapa from '../profile/bapa.png'
+import ibu from '../profile/ibu.png'
+import aa from '../profile/aa.png'
+import tth from '../profile/tth.png'
 
+const getAvatar = (id) => {
+    switch (id) {
+        case 0: return bapa;
+        case 1: return ibu;
+        case 2: return aa;
+        case 3: return tth;
+        default: return bapa;
+    }
+}
 
 const Auth = props => {
     const [data, setData] = useState({
@@ -13,7 +26,8 @@ const Auth = props => {
         jml: 0,
         roomName: '',
         kategori: '',
-        name: ''
+        name: '',
+        avatar: 0
     });
 
 
@@ -25,13 +39,13 @@ const Auth = props => {
 
     const setUserName = () => {
         setLoading(true);
-        props.socket.emit('setUsername', data.username);
+        props.socket.emit('setUsername', { username: data.username, avatar: data.avatar });
     }
 
     const buatRoom = () => {
-        if(data.jml > 0 && data.kategori !== ''){
-            props.socket.emit('buatRoom', {jml: data.jml, kategori: data.kategori, nama: data.name})
-            console.log({jml: data.jml, kategori: data.kategori, nama: data.name});
+        if (data.jml > 0 && data.kategori !== '') {
+            props.socket.emit('buatRoom', { jml: data.jml, kategori: data.kategori, nama: data.name })
+            console.log({ jml: data.jml, kategori: data.kategori, nama: data.name });
             setLoading(true);
         } else {
             console.log('baleg euy');
@@ -46,7 +60,7 @@ const Auth = props => {
         console.log(code);
         setRoom(state => {
             let temp = []
-            temp = state.map(e => e.code === code ? {...e, isLoading: true, isDisabled: true} : {...e, isDisabled: true})
+            temp = state.map(e => e.code === code ? { ...e, isLoading: true, isDisabled: true } : { ...e, isDisabled: true })
             return temp;
         })
         props.socket.emit('masukRoom', code);
@@ -60,8 +74,8 @@ const Auth = props => {
     }, [step])
 
     React.useEffect(() => {
-        props.socket.on('username', (d) => {
-            setData({ ...data, username: d })
+        props.socket.on('initSelfData', (d) => {
+            setData({ ...data, username: d.username, avatar: d.avatar })
             console.log(d);
             setLoading(false);
             setStep(2);
@@ -84,6 +98,13 @@ const Auth = props => {
                     step === 1 && (
                         <Box color="white" bg="#2C3024" borderRadius="md" padding="5" shadow="xl" width="xs" >
                             <VStack spacing="10px" >
+                                <Text fontSize="16" >Pilih Avatar</Text>
+                                <SimpleGrid columns={2} spacing={5} >
+                                    <img src={bapa} className={`avatar ${data.avatar === 0 ? 'active' : ''}`} onClick={e => setData({ ...data, avatar: 0 })} alt="" />
+                                    <img src={ibu} className={`avatar ${data.avatar === 1 ? 'active' : ''}`} onClick={e => setData({ ...data, avatar: 1 })} alt="" />
+                                    <img src={aa} className={`avatar ${data.avatar === 2 ? 'active' : ''}`} onClick={e => setData({ ...data, avatar: 2 })} alt="" />
+                                    <img src={tth} className={`avatar ${data.avatar === 3 ? 'active' : ''}`} onClick={e => setData({ ...data, avatar: 3 })} alt="" />
+                                </SimpleGrid>
                                 <Text fontSize="12" >Masukan Username Terlebih dahulu</Text>
 
                                 <Input placeholder="Masukan Username.." size="sm" colorScheme="blackAlpha" onChange={(e) => setData({ ...data, username: e.target.value })} />
@@ -106,6 +127,7 @@ const Auth = props => {
                     step === 2 && (
                         <Box color="white" bg="#2C3024" borderRadius="md" padding="5" shadow="xl" width="xs">
                             <VStack spacing="10px" >
+                                <img src={getAvatar(data.avatar)} className='avatar active' alt="" />
                                 <Text>Hai {data.username}</Text>
                                 <Button
                                     isLoading={isLoading}
@@ -152,7 +174,7 @@ const Auth = props => {
                                 </FormControl>
                                 <FormControl >
                                     <FormLabel>Jumlah Pemain</FormLabel>
-                                    <Select placeholder="Jumlah Pemain" variant="filled" color="black" onChange={e => setData({...data, jml: e.target.value})} >
+                                    <Select placeholder="Jumlah Pemain" variant="filled" color="black" onChange={e => setData({ ...data, jml: e.target.value })} >
                                         <option value="3">3</option>
                                         <option value="5">5</option>
                                         <option value="10" >10</option>
@@ -160,10 +182,10 @@ const Auth = props => {
                                 </FormControl>
                                 <FormControl >
                                     <FormLabel>Kategori</FormLabel>
-                                    <Select placeholder="Kategori" value={data.kategori} onChange={e => setData({...data, kategori: e.target.value})} variant="filled" color="black" >
+                                    <Select placeholder="Kategori" value={data.kategori} onChange={e => setData({ ...data, kategori: e.target.value })} variant="filled" color="black" >
                                         <option value='general' >Umum</option>
                                         <option value='sport' >Olahraga</option>
-                                        <option value='movie'>Film</option>
+                                        <option value='food'>Makanan</option>
                                     </Select>
                                 </FormControl>
                                 <Button
@@ -198,19 +220,19 @@ const Auth = props => {
                                         <Skeleton height="100px" width="xs" colorScheme="blackAlpha" shadow="xl" key={i} />
                                     ))
                                 ) : (
-                                    room.map((d,i)=> (
+                                    room.map((d, i) => (
                                         <Box color="white" width="xs" bgColor="blackAlpha.300" borderRadius="md" padding="5" shadow="xl" key={i} >
                                             <VStack width="full" spacing="40px" >
                                                 <HStack justify="space-between" width="max-content" width="100%" >
                                                     <Text>{d.name}</Text>
                                                     <Spacer />
                                                     <Text>{d.players.length}/{d.max} </Text>
-                                                        {d.isPlayed ? <Text color='red' fontSize='sm' >(Bermain)</Text> : <Text color='yellow' fontSize='sm' >(Menunggu)</Text> }
+                                                    {d.isPlayed ? <Text color='red' fontSize='sm' >(Bermain)</Text> : <Text color='yellow' fontSize='sm' >(Menunggu)</Text>}
                                                 </HStack>
                                                 <HStack justify="space-between" width="max-content" width="100%" >
                                                     <Text>Kategori : {d.category}</Text>
                                                     <Button
-                                                        isLoading={d.isLoading }
+                                                        isLoading={d.isLoading}
                                                         loadingText="Memasuki Room"
                                                         colorScheme="blackAlpha"
                                                         fontSize="sm"
